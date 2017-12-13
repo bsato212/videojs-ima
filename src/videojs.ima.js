@@ -51,6 +51,7 @@
   var ima_defaults = {
     debug: false,
     timeout: 5000,
+    vastLoadTimeout: 5000,
     prerollTimeout: 100,
     adLabel: 'Advertisement',
     showControlsForJSAds: true
@@ -234,6 +235,8 @@
           this.settings.nonLinearWidth || this.getPlayerWidth();
       adsRequest.nonLinearAdSlotHeight =
           this.settings.nonLinearHeight || (this.getPlayerHeight() / 3);
+
+      adsRequest.vastLoadTimeout = this.settings.vastLoadTimeout;
 
       adsRequest.setAdWillAutoPlay(this.settings.adWillAutoPlay);
 
