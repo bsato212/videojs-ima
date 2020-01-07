@@ -145,6 +145,7 @@ var PlayerWrapper = function PlayerWrapper(player, adsPluginSettings, controller
   this.vjsPlayer.on('contentended', this.boundContentEndedListener);
   this.vjsPlayer.on('dispose', this.playerDisposedListener.bind(this));
   this.vjsPlayer.on('readyforpreroll', this.onReadyForPreroll.bind(this));
+  this.vjsPlayer.on('adtimeout', this.onAdTimeout.bind(this));
   this.vjsPlayer.ready(this.onPlayerReady.bind(this));
 
   if (this.controller.getSettings().requestMode === 'onPlay') {
@@ -265,6 +266,13 @@ PlayerWrapper.prototype.playerDisposedListener = function () {
  */
 PlayerWrapper.prototype.onReadyForPreroll = function () {
   this.controller.onPlayerReadyForPreroll();
+};
+
+/**
+ * Detects if the ad has timed out.
+ */
+PlayerWrapper.prototype.onAdTimeout = function () {
+  this.controller.onAdTimeout();
 };
 
 /**
@@ -1124,7 +1132,7 @@ var scripts = { "contBuild": "watch 'npm run rollup:max' src", "predevServer": "
 var repository = { "type": "git", "url": "https://github.com/googleads/videojs-ima" };
 var files = ["CHANGELOG.md", "LICENSE", "README.md", "dist/", "src/"];
 var dependencies = { "can-autoplay": "^3.0.0", "cryptiles": "^4.1.2", "extend": ">=3.0.2", "lodash": ">=4.17.13", "lodash.template": ">=4.5.0", "video.js": "^5.19.2 || ^6 || ^7", "videojs-contrib-ads": "^6" };
-var devDependencies = { "babel-core": "^6.26.3", "babel-preset-env": "^1.7.0", "child_process": "^1.0.2", "chromedriver": "^2.35.0", "conventional-changelog-cli": "^2.0.21", "conventional-changelog-videojs": "^3.0.0", "eslint": "^4.11.0", "eslint-config-google": "^0.9.1", "eslint-plugin-jsdoc": "^3.2.0", "geckodriver": "^1.16.2", "http-server": "^0.10.0", "mocha": "^5.0.3", "npm-run-all": "^4.1.2", "path": "^0.12.7", "rimraf": "^2.6.2", "rollup": "^0.51.8", "rollup-plugin-babel": "^3.0.3", "rollup-plugin-copy": "^0.2.3", "rollup-plugin-json": "^2.3.0", "rollup-plugin-uglify": "^2.0.1", "selenium-webdriver": "^3.6.0", "uglify-es": "^3.1.10", "watch": "^1.0.2" };
+var devDependencies = { "babel-core": "^6.26.3", "babel-preset-env": "^1.7.0", "child_process": "^1.0.2", "chromedriver": "^2.35.0", "conventional-changelog-cli": "^2.0.21", "conventional-changelog-videojs": "^3.0.0", "eslint": "^4.11.0", "eslint-config-google": "^0.9.1", "eslint-plugin-jsdoc": "^3.2.0", "geckodriver": "^1.19.1", "http-server": "^0.10.0", "mocha": "^5.0.3", "npm-run-all": "^4.1.2", "path": "^0.12.7", "rimraf": "^2.6.2", "rollup": "^0.51.8", "rollup-plugin-babel": "^3.0.3", "rollup-plugin-copy": "^0.2.3", "rollup-plugin-json": "^2.3.0", "rollup-plugin-uglify": "^2.0.1", "selenium-webdriver": "^3.6.0", "uglify-es": "^3.1.10", "watch": "^1.0.2" };
 var keywords = ["videojs", "videojs-plugin"];
 var pkg = {
 	name: name,
@@ -1250,6 +1258,11 @@ var SdkImpl = function SdkImpl(controller) {
    * Tracks whether or not we have already called adsLoader.contentComplete().
    */
   this.contentCompleteCalled = false;
+
+  /**
+   * True if the ad has timed out.
+   */
+  this.isAdTimedOut = false;
 
   /**
    * Stores the dimensions for the ads manager.
@@ -1399,7 +1412,14 @@ SdkImpl.prototype.onAdsManagerLoaded = function (adsManagerLoadedEvent) {
     this.initAdsManager();
   }
 
-  this.controller.onAdsReady();
+  var _controller$getSettin = this.controller.getSettings(),
+      doNotPlayAdAfterContentStart = _controller$getSettin.doNotPlayAdAfterContentStart;
+
+  if (!doNotPlayAdAfterContentStart) {
+    this.controller.onAdsReady();
+  } else if (doNotPlayAdAfterContentStart && !this.isAdTimedOut) {
+    this.controller.onAdsReady();
+  }
 
   if (this.controller.getSettings().adsManagerLoadedCallback) {
     this.controller.getSettings().adsManagerLoadedCallback();
@@ -1631,6 +1651,10 @@ SdkImpl.prototype.onPlayerReadyForPreroll = function () {
       this.onAdError(adError);
     }
   }
+};
+
+SdkImpl.prototype.onAdTimeout = function () {
+  this.isAdTimedOut = true;
 };
 
 SdkImpl.prototype.onPlayerReady = function () {
@@ -1922,7 +1946,8 @@ Controller.IMA_DEFAULTS = {
   adLabel: 'Advertisement',
   adLabelNofN: 'of',
   showControlsForJSAds: true,
-  requestMode: 'onLoad'
+  requestMode: 'onLoad',
+  doNotPlayAdAfterContentStart: false
 };
 
 /**
@@ -2284,6 +2309,13 @@ Controller.prototype.onPlayerDisposed = function () {
  */
 Controller.prototype.onPlayerReadyForPreroll = function () {
   this.sdkImpl.onPlayerReadyForPreroll();
+};
+
+/**
+ * Called if the ad times out.
+ */
+Controller.prototype.onAdTimeout = function () {
+  this.sdkImpl.onAdTimeout();
 };
 
 /**
